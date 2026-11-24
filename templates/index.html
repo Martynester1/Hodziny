@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Čas serveru – přepínatelné designy</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Montserrat:wght@500;700&family=Luckiest+Guy&family=Fredoka:wght@500;700&family=Rubik+Glitch&family=VT323&display=swap');
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: background 0.4s ease;
+      user-select: none;
+    }
+    .app { position: relative; width: 100%; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px 32px; }
+    .hint {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 300;
+      padding: 8px 14px; border-radius: 999px; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 700;
+      backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 6px 20px rgba(0,0,0,0.2); pointer-events: none;
+    }
+    .hint kbd { font: inherit; padding: 2px 8px; border-radius: 6px; margin: 0 2px; background: rgba(255,255,255,0.85); color: #222; border: 1px solid rgba(0,0,0,0.15); }
+    .scene { position: relative; display: flex; flex-direction: column; align-items: center; z-index: 80; }
+    .stage { position: relative; padding: 34px; }
+    .clock { width: min(72vw, 360px); height: min(72vw, 360px); border-radius: 50%; position: relative; overflow: visible; }
+    .hand { position: absolute; left: 50%; bottom: 50%; transform-origin: bottom center; transform: translateX(-50%) rotate(0deg); border-radius: 999px; }
+    .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; z-index: 6; }
+    .tick, .number { position: absolute; left: 50%; top: 50%; }
+    .number { transform: translate(-50%, -50%); user-select: none; z-index: 5; font-weight: 700; }
+    .panel { margin-top: 1.1rem; text-align: center; padding: 0.7rem 1.2rem; border-radius: 999px; }
+    .digital { font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: 0.08em; }
+    .title { margin: 0 0 0.3rem; text-align: center; }
+    .subtitle { margin: 0 0 1rem; text-align: center; font-family: 'Montserrat', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.8rem; }
+
+    /* ========== GLAMOUR ========== */
+    body.theme-glamour { color: #4a1230; background: radial-gradient(circle at 15% 20%, rgba(255,255,255,0.35), transparent 20%), radial-gradient(circle at 85% 15%, rgba(255,215,0,0.18), transparent 22%), radial-gradient(circle at 50% 85%, rgba(255,79,163,0.25), transparent 30%), linear-gradient(135deg, #2b0016 0%, #5a0030 35%, #8a004a 70%, #2b0016 100%); }
+    body.theme-glamour .app::before { content: ""; position: fixed; inset: 0; opacity: 0.22; pointer-events: none; background-color: #f6b7d8; background-image: radial-gradient(ellipse 22px 14px at 20px 30px, rgba(59,29,18,0.95) 0 45%, transparent 55%), radial-gradient(ellipse 24px 16px at 80px 70px, rgba(59,29,18,0.95) 0 45%, transparent 55%), radial-gradient(ellipse 20px 13px at 140px 35px, rgba(59,29,18,0.9) 0 45%, transparent 55%), radial-gradient(ellipse 26px 17px at 40px 120px, rgba(59,29,18,0.92) 0 45%, transparent 55%); background-size: 180px 160px; mix-blend-mode: screen; }
+    body.theme-glamour .hint { background: rgba(255,209,232,0.85); color: #5a0030; }
+    body.theme-glamour .title { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 900; background: linear-gradient(90deg, #fff2b3, #ffd700, #fff, #ffd700, #fff2b3); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+    body.theme-glamour .jewelry-ring { position: absolute; inset: -10px; border-radius: 50%; border: 10px solid transparent; background: linear-gradient(#3a0020,#3a0020) padding-box, repeating-conic-gradient(from 0deg,#ffd700 0 8deg,#8a6b1f 8deg 10deg,#fff2b3 10deg 16deg,#d4af37 16deg 18deg) border-box; box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 0 25px rgba(255,215,0,0.45); z-index: 1; }
+    body.theme-glamour .gems { position: absolute; inset: -10px; border-radius: 50%; pointer-events: none; z-index: 2; }
+    body.theme-glamour .gem { position: absolute; width: 18px; height: 18px; left: 50%; top: 50%; margin: -9px; background: radial-gradient(circle at 30% 30%, #fff, #ff3fa8 35%, #7a003f 80%); border: 2px solid #ffd700; border-radius: 4px; transform: rotate(45deg); }
+    body.theme-glamour .clock { border: 8px solid #d4af37; z-index: 3; box-shadow: 0 0 0 5px rgba(255,241,184,0.8), 0 0 0 12px rgba(212,175,55,0.45), 0 25px 60px rgba(0,0,0,0.5); background: linear-gradient(160deg, #ffd9ec 0%, #ffb6d9 40%, #ff8fc7 100%); overflow: hidden; }
+    body.theme-glamour .clock::before { content: ""; position: absolute; inset: 0; opacity: 0.55; background-color: #f7bfdc; background-image: radial-gradient(ellipse 34px 22px at 18% 22%, rgba(59,29,18,0.95) 0 42%, transparent 52%), radial-gradient(ellipse 38px 24px at 78% 28%, rgba(59,29,18,0.92) 0 42%, transparent 52%), radial-gradient(ellipse 36px 23px at 30% 72%, rgba(59,29,18,0.93) 0 42%, transparent 52%); mix-blend-mode: multiply; }
+    body.theme-glamour .clock::after { content: ""; position: absolute; inset: 18px; border-radius: 50%; border: 3px solid rgba(255,215,0,0.85); pointer-events: none; }
+    body.theme-glamour .hand.hour { width: 12px; height: 24%; background: linear-gradient(to top,#8a6b1f,#ffd700,#fff2b3); z-index:3; }
+    body.theme-glamour .hand.minute { width: 8px; height: 34%; background: linear-gradient(to top,#a00050,#ff4fa3,#ffd6ec); z-index:2; }
+    body.theme-glamour .hand.second { width: 3px; height: 40%; background: linear-gradient(to top,#8a6b1f,#fff4bf,#fff); z-index:4; }
+    body.theme-glamour .center { width: 26px; height: 26px; background: radial-gradient(circle at 30% 30%,#fff,#ffd700 40%,#8a6b1f); border: 3px solid #fff8d6; }
+    body.theme-glamour .tick { width: 4px; height: 16px; background: linear-gradient(to bottom,#ffd700,#8a6b1f); border-radius:4px; }
+    body.theme-glamour .tick.minor { width:2px; height:8px; background: rgba(255,255,255,0.85); }
+    body.theme-glamour .number { font-family:'Playfair Display',serif; font-size: clamp(1rem,2.5vw,1.5rem); color:#fffdf4; }
+    body.theme-glamour .panel { background: linear-gradient(135deg, rgba(255,209,232,0.95), rgba(255,143,199,0.9)); border: 2px solid #ffd700; }
+    body.theme-glamour .digital { color:#6b0038; }
+
+    /* ========== BIKINI ========== */
+    body.theme-bikini { color: #083b4a; background: linear-gradient(to bottom, #7fe9ff 0%, #35c6ff 35%, #1fa2d6 55%, #2ec4b6 56%, #f7e7a9 70%, #e7c97a 100%); }
+    body.theme-bikini .hint { background: rgba(255, 247, 170, 0.9); color: #0b4b5f; }
+    body.theme-bikini .title { font-family: 'Luckiest Guy', cursive; font-size: clamp(2rem,5vw,3.2rem); color: #fff25c; text-shadow: 3px 3px 0 #d97706, -2px -2px 0 #0ea5b7; }
+    body.theme-bikini .jewelry-ring, body.theme-bikini .gems { display: none; }
+    body.theme-bikini .clock { border: 10px solid #8b5a2b; z-index: 3; box-shadow: 0 0 0 6px #f59e0b, 0 18px 35px rgba(0,0,0,0.25); background: linear-gradient(180deg, #bff3ff 0%, #e8fbff 100%); overflow: hidden; }
+    body.theme-bikini .clock::before { content: ""; position: absolute; left: 8%; right: 8%; bottom: 0; height: 28%; background: linear-gradient(to top, #d9b36c, #f3d89a); border-top-left-radius: 50% 30%; border-top-right-radius: 50% 30%; }
+    body.theme-bikini .hand.hour { width: 12px; height: 22%; background: linear-gradient(to top,#92400e,#f59e0b,#fde68a); z-index:3; }
+    body.theme-bikini .hand.minute { width: 8px; height: 32%; background: linear-gradient(to top,#065f46,#34d399,#d1fae5); z-index:2; }
+    body.theme-bikini .hand.second { width: 3px; height: 38%; background: #ef4444; z-index:4; }
+    body.theme-bikini .center { width: 22px; height: 22px; background: radial-gradient(circle at 30% 30%,#fff,#fde047 45%,#f59e0b); border: 3px solid #92400e; }
+    body.theme-bikini .tick { width: 4px; height: 14px; background: #0f766e; border-radius: 4px; }
+    body.theme-bikini .tick.minor { width: 2px; height: 7px; background: rgba(15,118,110,0.5); }
+    body.theme-bikini .number { font-family: 'Fredoka', sans-serif; font-size: clamp(1rem,2.4vw,1.4rem); color:#083344; }
+    body.theme-bikini .panel { background: rgba(255,255,255,0.75); border: 3px solid #0ea5b7; }
+    body.theme-bikini .digital { color:#064e63; }
+
+    .flyer { position: fixed; left: 0; top: 0; z-index: 90; display: none; cursor: grab; touch-action: none; will-change: transform, filter, opacity; transform-origin: center center; }
+    body.theme-bikini .flyer { display: block; }
+    .flyer.blinking { animation: blinkCrazy 0.12s steps(2, end) infinite; }
+    @keyframes blinkCrazy { 0% { opacity: 1; filter: hue-rotate(0deg) brightness(1.2) saturate(1.6); } 50% { opacity: 0.2; filter: hue-rotate(40deg) brightness(1.8) saturate(2); } 100% { opacity: 1; filter: hue-rotate(-30deg) brightness(1.3) saturate(1.8); } }
+    .flyer .label { margin-top: 4px; text-align: center; font-family: 'Fredoka', sans-serif; font-weight: 700; color: #064e63; font-size: 0.9rem; }
+    .sb-body { width: 92px; height: 105px; background: #ffe75a; border: 4px solid #c9a400; border-radius: 10px; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2); background-image: radial-gradient(#e2c100 0 4px, transparent 5px), radial-gradient(#e2c100 0 3px, transparent 4px); background-size: 28px 28px, 22px 22px; background-position: 4px 6px, 16px 18px; }
+    .eyes { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; }
+    .eye { width: 28px; height: 28px; background: #fff; border: 3px solid #333; border-radius: 50%; position: relative; }
+    .eye::after { content:""; position:absolute; width:8px; height:8px; background:#1e90ff; border:2px solid #222; border-radius:50%; top:9px; left:9px; }
+    .sb-mouth { position:absolute; bottom:24px; left:50%; transform:translateX(-50%); width:34px; height:14px; border-bottom:4px solid #a16207; border-radius:0 0 18px 18px; }
+    .sb-teeth { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:3px; }
+    .sb-teeth span { width:8px; height:8px; background:#fff; border:1px solid #ccc; }
+    .sb-clothes { position:absolute; bottom:0; left:0; right:0; height:24px; background:#fff; border-top:3px solid #8b5a2b; }
+    .sb-clothes::after { content:""; position:absolute; left:0; right:0; bottom:0; height:10px; background:#7c3aed; }
+    .sb-tie { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-top:14px solid #ef4444; }
+    .pat-body { width: 110px; height: 120px; background: #ff9acb; border: 4px solid #d9468f; position: relative; clip-path: polygon(50% 0%, 72% 18%, 100% 22%, 82% 48%, 88% 100%, 50% 82%, 12% 100%, 18% 48%, 0% 22%, 28% 18%); filter: drop-shadow(0 8px 10px rgba(0,0,0,0.2)); }
+    .pat-eye { position:absolute; top:28px; width:20px; height:24px; background:#fff; border:3px solid #333; border-radius:50%; }
+    .pat-eye.left { left:34px; } .pat-eye.right { right:34px; }
+    .pat-eye::after { content:""; position:absolute; width:6px; height:6px; background:#222; border-radius:50%; top:9px; left:6px; }
+    .pat-mouth { position:absolute; top:58px; left:50%; transform:translateX(-50%); width:26px; height:10px; border-bottom:4px solid #9d174d; border-radius:0 0 14px 14px; }
+    .pat-shorts { position:absolute; bottom:6px; left:50%; transform:translateX(-50%); width:64px; height:26px; background:#84cc16; border:3px solid #4d7c0f; border-radius:8px 8px 18px 18px; }
+
+    /* ========== HALLUCINATION ========== */
+    body.theme-hallucination { color: #fff; background: #000; animation: bgFlash 0.7s steps(2,end) infinite, hueSpin 4s linear infinite; }
+    @keyframes bgFlash {
+      0% { background: radial-gradient(circle at 20% 30%, #ff00ff, #0011ff 40%, #00ff99 70%, #000); }
+      25% { background: radial-gradient(circle at 80% 20%, #00ffff, #ff0000 35%, #ffee00 70%, #120012); }
+      50% { background: radial-gradient(circle at 50% 80%, #39ff14, #7c00ff 40%, #ff6a00 75%, #001018); }
+      75% { background: radial-gradient(circle at 30% 60%, #ff1493, #00ffea 35%, #fff200 70%, #140000); }
+      100% { background: radial-gradient(circle at 70% 50%, #ff00aa, #00ff00 40%, #0044ff 75%, #000); }
+    }
+    @keyframes hueSpin { from { filter: hue-rotate(0deg) saturate(1.4); } to { filter: hue-rotate(360deg) saturate(1.8); } }
+    body.theme-hallucination .app { animation: appWarp 2.2s ease-in-out infinite alternate; }
+    @keyframes appWarp { 0% { transform: scale(1) skew(0deg,0deg) rotate(0deg); } 33% { transform: scale(1.02) skew(1.2deg,-0.8deg) rotate(-0.4deg); } 66% { transform: scale(0.99) skew(-1deg,1.1deg) rotate(0.5deg); } 100% { transform: scale(1.03) skew(0.6deg,0.6deg) rotate(-0.2deg); } }
+    body.theme-hallucination .hint { background: rgba(0,0,0,0.55); color: #fff; border-color: rgba(255,255,255,0.5); text-shadow: 0 0 8px #0ff; }
+    body.theme-hallucination .title { font-family: 'Rubik Glitch', cursive; font-size: clamp(2rem,5vw,3.2rem); color: #fff; text-shadow: 3px 0 #ff00ff, -3px 0 #00ffff, 0 0 20px #ff0; animation: textBlink 0.18s steps(2,end) infinite; }
+    body.theme-hallucination .subtitle { color: #fff; text-shadow: 0 0 10px #f0f, 0 0 20px #0ff; animation: textBlink 0.25s steps(2,end) infinite reverse; }
+    @keyframes textBlink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    body.theme-hallucination .jewelry-ring, body.theme-hallucination .gems { display: none; }
+    body.theme-hallucination .scene { z-index: 120; }
+    body.theme-hallucination .clock {
+      border: 8px solid #fff; z-index: 3; overflow: visible;
+      box-shadow: 0 0 20px #ff00ff, 0 0 40px #00ffff, 0 0 60px #ffff00, inset 0 0 30px rgba(255,255,255,0.3);
+      background: conic-gradient(from 0deg, #ff004c, #ff7a00, #ffee00, #00ff85, #00cfff, #4c00ff, #ff00c8, #ff004c);
+      animation: spinFace 4s linear infinite;
+    }
+    @keyframes spinFace { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+    body.theme-hallucination .clock::before { content: ""; position: absolute; inset: 10%; border-radius: 50%; background: rgba(0,0,0,0.55); }
+    body.theme-hallucination .hand { will-change: transform; }
+    body.theme-hallucination .hand.hour { width: 14px; height: 24%; background: #fff; box-shadow: 0 0 12px #ff0, 0 0 20px #f0f; z-index:3; }
+    body.theme-hallucination .hand.minute { width: 10px; height: 34%; background: #00ffff; box-shadow: 0 0 12px #0ff, 0 0 20px #0f0; z-index:2; }
+    body.theme-hallucination .hand.second { width: 6px; height: 40%; background: #ff004c; box-shadow: 0 0 14px #f00, 0 0 24px #ff0; z-index:4; }
+    body.theme-hallucination .center { width: 28px; height: 28px; background: #fff; border: 3px solid #000; box-shadow: 0 0 20px #fff, 0 0 30px #f0f; z-index: 7; }
+    body.theme-hallucination .tick { width: 4px; height: 14px; background: #fff; box-shadow: 0 0 8px #fff; }
+    body.theme-hallucination .tick.minor { width: 2px; height: 7px; background: rgba(255,255,255,0.7); }
+    body.theme-hallucination .number { font-family: 'VT323', monospace; font-size: clamp(1.1rem,2.8vw,1.7rem); color:#fff; text-shadow: 0 0 8px #0ff, 0 0 14px #f0f; }
+    body.theme-hallucination .panel { background: rgba(0,0,0,0.55); border: 2px solid #fff; box-shadow: 0 0 20px #f0f, inset 0 0 20px rgba(0,255,255,0.25); }
+    body.theme-hallucination .digital { color:#fff; font-family: 'VT323', monospace; font-size: 1.4rem; text-shadow: 0 0 10px #0ff; }
+
+    /* Chaos layers */
+    #chaos-layer, #fx-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; display: none; }
+    #chaos-layer { z-index: 20; }
+    #fx-layer { z-index: 30; }
+    body.theme-hallucination #chaos-layer, body.theme-hallucination #fx-layer { display: block; }
+    .chaos-item { position: absolute; will-change: transform, opacity; white-space: nowrap; font-weight: 900; }
+    .chaos-text { font-family: 'Rubik Glitch', 'Montserrat', sans-serif; text-transform: uppercase; padding: 4px 8px; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 0 0 12px currentColor; }
+    .chaos-obj { font-size: 2rem; filter: drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+    .stuck { animation: stuckBlink 0.22s steps(2,end) infinite; }
+    @keyframes stuckBlink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .burst { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+    .particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; }
+    .firework-ring { position: absolute; border: 4px solid #fff; border-radius: 50%; box-shadow: 0 0 20px currentColor, inset 0 0 20px currentColor; opacity: 0; }
+    .mlg-pop { position: absolute; font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 0 0 10px #0ff, 0 0 20px #f0f; transform-origin: center; white-space: nowrap; }
+    .mlg-imgtxt { font-size: 2.2rem; filter: drop-shadow(0 0 8px #fff); }
+  </style>
+</head>
+<body class="theme-glamour">
+  <div class="app">
+    <div class="hint" id="hint">Stiskni <kbd>C</kbd> pro přepnutí designu</div>
+    <div id="chaos-layer"></div>
+    <div id="fx-layer"></div>
+
+    <div class="scene">
+      <h1 class="title" id="title">Glamour Server Time</h1>
+      <div class="subtitle" id="subtitle">Pink • Leopard • Gold</div>
+
+      <div class="stage">
+        <div class="jewelry-ring"></div>
+        <div class="gems" id="gems"></div>
+        <div class="clock" id="clock" aria-label="Analogové hodiny zobrazující čas serveru">
+          <div class="hand hour" id="hour"></div>
+          <div class="hand minute" id="minute"></div>
+          <div class="hand second" id="second"></div>
+          <div class="center"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="digital" id="time"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flyer" id="fly-spongebob" aria-label="SpongeBob">
+    <div class="sb-body">
+      <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+      <div class="sb-mouth"></div>
+      <div class="sb-teeth"><span></span><span></span></div>
+      <div class="sb-clothes"></div>
+      <div class="sb-tie"></div>
+    </div>
+    <div class="label">SpongeBob</div>
+  </div>
+  <div class="flyer" id="fly-patrick" aria-label="Patrik">
+    <div class="pat-body">
+      <div class="pat-eye left"></div>
+      <div class="pat-eye right"></div>
+      <div class="pat-mouth"></div>
+      <div class="pat-shorts"></div>
+    </div>
+    <div class="label">Patrik</div>
+  </div>
+
+  <script>
+    let serverSecondsTotal = {{ hour }} * 3600 + {{ minute }} * 60 + {{ second }};
+
+    const clock = document.getElementById('clock');
+    const gems = document.getElementById('gems');
+    const chaosLayer = document.getElementById('chaos-layer');
+    const fxLayer = document.getElementById('fx-layer');
+
+    function placeGems() {
+      gems.innerHTML = '';
+      const size = clock.clientWidth || 360;
+      const radius = size / 2 + 28;
+      for (let i = 0; i < 12; i++) {
+        const gem = document.createElement('div');
+        gem.className = 'gem';
+        const angle = (i * 30 - 90) * Math.PI / 180;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        gem.style.transform = `translate(${x}px, ${y}px) rotate(45deg)`;
+        gems.appendChild(gem);
+      }
+    }
+    function placeTicksAndNumbers() {
+      clock.querySelectorAll('.tick, .number').forEach(n => n.remove());
+      const size = clock.clientWidth || 360;
+      const tickRadius = size * 0.43, numRadius = size * 0.33;
+      for (let i = 0; i < 60; i++) {
+        const tick = document.createElement('div');
+        const isHour = i % 5 === 0;
+        tick.className = 'tick' + (isHour ? '' : ' minor');
+        const angle = i * 6;
+        tick.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-${tickRadius}px)`;
+        clock.appendChild(tick);
+      }
+      for (let n = 1; n <= 12; n++) {
+        const num = document.createElement('div');
+        num.className = 'number';
+        num.textContent = n;
+        const angle = (n * 30) * Math.PI / 180;
+        const x = Math.sin(angle) * numRadius;
+        const y = -Math.cos(angle) * numRadius;
+        num.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        clock.appendChild(num);
+      }
+    }
+    function layout() { placeGems(); placeTicksAndNumbers(); }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    let normalH=0, normalM=0, normalS=0;
+    function update() {
+      const total = ((serverSecondsTotal % 86400) + 86400) % 86400;
+      normalH = Math.floor(total / 3600);
+      normalM = Math.floor((total % 3600) / 60);
+      normalS = total % 60;
+      document.getElementById('time').textContent = `${pad(normalH)}:${pad(normalM)}:${pad(normalS)} server time`;
+      if (!document.body.classList.contains('theme-hallucination')) {
+        const secondDeg = normalS * 6;
+        const minuteDeg = normalM * 6 + normalS * 0.1;
+        const hourDeg = (normalH % 12) * 30 + normalM * 0.5 + normalS * (0.5 / 60);
+        document.getElementById('second').style.transform = `translateX(-50%) rotate(${secondDeg}deg) scale(1)`;
+        document.getElementById('minute').style.transform = `translateX(-50%) rotate(${minuteDeg}deg) scale(1)`;
+        document.getElementById('hour').style.transform = `translateX(-50%) rotate(${hourDeg}deg) scale(1)`;
+      }
+      serverSecondsTotal++;
+    }
+
+    // Themes
+    const themes = [
+      { key: 'theme-glamour', title: 'Glamour Server Time', subtitle: 'Pink • Leopard • Gold', hint: 'Stiskni <kbd>C</kbd> pro přepnutí designu (Glamour / Bikini / Halucinace)' },
+      { key: 'theme-bikini', title: 'Bikini Bottom Time', subtitle: 'SpongeBob & Patrik v zátiší', hint: 'Stiskni <kbd>C</kbd> pro přepnutí • Chyť a hoď SpongeBobem/Patrikem o zeď!' },
+      { key: 'theme-hallucination', title: 'NEMÁŠ ČAS', subtitle: 'SCHOVEJ SE', hint: 'Stiskni <kbd>C</kbd> pro přepnutí • TOTÁLNÍ HALUCINACE' }
+    ];
+    let themeIndex = 0;
+
+    // Bikini flyers
+    const flyers = [
+      { id: 'fly-spongebob', x: 80, y: 120, vx: 6, vy: 4, w: 100, h: 140, dragging: false, angle: 0, va: 0.1 },
+      { id: 'fly-patrick', x: 0, y: 0, vx: -5, vy: 5, w: 110, h: 150, dragging: false, angle: 0, va: -0.08 }
+    ];
+    flyers.forEach(f => { f.el = document.getElementById(f.id); });
+    function resetFlyers() {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      flyers[0].x = Math.max(20, vw * 0.2 - 50); flyers[0].y = Math.max(80, vh * 0.55); flyers[0].vx = (Math.random()*10+6)*(Math.random()<0.5?-1:1); flyers[0].vy = (Math.random()*8-4);
+      flyers[1].x = Math.max(20, vw * 0.7 - 55); flyers[1].y = Math.max(80, vh * 0.5); flyers[1].vx = (Math.random()*10+6)*(Math.random()<0.5?-1:1); flyers[1].vy = (Math.random()*8-4);
+      flyers.forEach(f => { f.angle = Math.random()*Math.PI; f.va = (Math.random()*0.3-0.15); });
+    }
+
+    // Hallucination chaos
+    let chaosItems = [];
+    let chaosSpawnTimer = null;
+    let fxTimer = null;
+    const chaosMessages = ['SCHOVEJ SE!', 'NEMÁŠ ČAS!', 'UTÍKEJ!', 'UŽ JE POZDĚ!', 'ČAS TĚ VIDÍ!', 'HODINY TIKAJÍ!', 'NEMŮŽEŠ UTÉCT!', 'SCHOVEJ SE HNED!', 'ŽÁDNÝ ČAS!', 'BĚŽ!', 'TIK TAK', 'POZOR!', 'UŽ JDE!', 'MIZÍŠ!'];
+    const chaosObjects = ['👁', '⏰', '⌛', '🌀', '⚠', '☠', '💀', '🔮', '◉', '△', '✦', '☢', '👁‍🗨'];
+
+    function clearChaos() {
+      chaosItems = [];
+      chaosLayer.innerHTML = '';
+      fxLayer.innerHTML = '';
+      if (chaosSpawnTimer) clearInterval(chaosSpawnTimer);
+      if (fxTimer) clearInterval(fxTimer);
+      chaosSpawnTimer = null; fxTimer = null;
+    }
+
+    function addChaosItems(nText=6, nObj=4, stuckChance=0.35) {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const colors = ['#ff004c','#00ffea','#ffee00','#39ff14','#ff00ff','#ffffff','#ff7a00'];
+      const makeItem = (el, type, stuck=false) => {
+        const item = {
+          el, type, stuck,
+          x: Math.random() * vw,
+          y: Math.random() * vh,
+          vx: stuck ? 0 : (Math.random() * 7 - 3.5),
+          vy: stuck ? 0 : (Math.random() * 7 - 3.5),
+          rot: Math.random() * 360,
+          vr: stuck ? (Math.random()*2-1) : (Math.random() * 8 - 4),
+          scale: 0.7 + Math.random() * 1.4,
+          blinkPhase: Math.random() * Math.PI * 2
+        };
+        chaosItems.push(item);
+        chaosLayer.appendChild(el);
+      };
+      for (let i = 0; i < nText; i++) {
+        const el = document.createElement('div');
+        const stuck = Math.random() < stuckChance;
+        el.className = 'chaos-item chaos-text' + (stuck ? ' stuck' : '');
+        el.textContent = chaosMessages[Math.floor(Math.random() * chaosMessages.length)];
+        el.style.color = colors[Math.floor(Math.random() * colors.length)];
+        el.style.fontSize = (0.9 + Math.random() * 2.0) + 'rem';
+        el.style.border = '2px solid ' + colors[Math.floor(Math.random() * colors.length)];
+        el.style.background = 'rgba(0,0,0,0.35)';
+        makeItem(el, 'text', stuck);
+      }
+      for (let i = 0; i < nObj; i++) {
+        const el = document.createElement('div');
+        const stuck = Math.random() < stuckChance;
+        el.className = 'chaos-item chaos-obj' + (stuck ? ' stuck' : '');
+        el.textContent = chaosObjects[Math.floor(Math.random() * chaosObjects.length)];
+        el.style.fontSize = (1.4 + Math.random() * 3.0) + 'rem';
+        makeItem(el, 'obj', stuck);
+      }
+      // cap to avoid infinite DOM growth
+      while (chaosItems.length > 180) {
+        const old = chaosItems.shift();
+        if (old && old.el && old.el.parentNode) old.el.parentNode.removeChild(old.el);
+      }
+    }
+
+    function spawnChaos() {
+      clearChaos();
+      addChaosItems(18, 12, 0.25);
+      // keep accumulating / sticking over time
+      chaosSpawnTimer = setInterval(() => {
+        if (document.body.classList.contains('theme-hallucination')) addChaosItems(4, 3, 0.5);
+      }, 1200);
+      fxTimer = setInterval(() => {
+        if (document.body.classList.contains('theme-hallucination')) spawnFXBurst();
+      }, 700);
+      // initial bursts
+      for (let i=0;i<4;i++) setTimeout(spawnFXBurst, i*180);
+    }
+
+    function spawnFXBurst() {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const x = Math.random() * vw;
+      const y = Math.random() * vh;
+      const colors = ['#ff004c','#00ffea','#ffee00','#39ff14','#ff00ff','#ffffff','#ff7a00','#00ff00'];
+      const type = Math.random();
+      if (type < 0.45) {
+        // explosion/firework particles
+        const count = 18 + Math.floor(Math.random()*18);
+        for (let i=0;i<count;i++) {
+          const p = document.createElement('div');
+          p.className = 'particle';
+          const c = colors[Math.floor(Math.random()*colors.length)];
+          p.style.background = c;
+          p.style.boxShadow = `0 0 10px ${c}, 0 0 18px ${c}`;
+          p.style.left = x+'px'; p.style.top = y+'px';
+          fxLayer.appendChild(p);
+          const ang = Math.random()*Math.PI*2;
+          const dist = 40 + Math.random()*220;
+          const dx = Math.cos(ang)*dist, dy = Math.sin(ang)*dist;
+          const dur = 500 + Math.random()*900;
+          p.animate([
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+            { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.2)`, opacity: 0 }
+          ], { duration: dur, easing: 'cubic-bezier(.1,.8,.2,1)', fill: 'forwards' }).onfinish = () => p.remove();
+        }
+        // ring
+        const ring = document.createElement('div');
+        ring.className = 'firework-ring';
+        const rc = colors[Math.floor(Math.random()*colors.length)];
+        ring.style.color = rc; ring.style.borderColor = rc; ring.style.left = x+'px'; ring.style.top = y+'px';
+        ring.style.width = '20px'; ring.style.height = '20px';
+        fxLayer.appendChild(ring);
+        ring.animate([
+          { transform: 'translate(-50%,-50%) scale(0.2)', opacity: 1 },
+          { transform: 'translate(-50%,-50%) scale(6)', opacity: 0 }
+        ], { duration: 700 + Math.random()*500, easing: 'ease-out', fill: 'forwards' }).onfinish = () => ring.remove();
+      } else {
+        // MLG popups
+        const mlg = ['MLG', '360 NOSCOPE', 'REKT', 'WOW', 'AIRHORN!!!', 'WOMBO COMBO', 'DANK', 'OH BABY', 'HEADSHOT', '😎', '💥', '🔥', 'HITMARKER', 'TRICKSHOT'];
+        const el = document.createElement('div');
+        el.className = 'mlg-pop' + (Math.random()<0.4 ? ' mlg-imgtxt' : '');
+        el.textContent = mlg[Math.floor(Math.random()*mlg.length)];
+        const c = colors[Math.floor(Math.random()*colors.length)];
+        el.style.color = c; el.style.left = x+'px'; el.style.top = y+'px';
+        el.style.fontSize = (1.2 + Math.random()*2.4) + 'rem';
+        fxLayer.appendChild(el);
+        const rot = (Math.random()*60-30);
+        const dur = 700 + Math.random()*900;
+        el.animate([
+          { transform: `translate(-50%,-50%) scale(0.2) rotate(${rot-20}deg)`, opacity: 0 },
+          { transform: `translate(-50%,-50%) scale(1.3) rotate(${rot}deg)`, opacity: 1, offset: 0.3 },
+          { transform: `translate(-50%,-80%) scale(1) rotate(${rot+10}deg)`, opacity: 0 }
+        ], { duration: dur, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+      }
+      // keep fx layer from growing too much (animations remove themselves, but safety)
+      while (fxLayer.childElementCount > 250) fxLayer.removeChild(fxLayer.firstChild);
+    }
+
+    function updateChaos(t) {
+      if (!document.body.classList.contains('theme-hallucination')) return;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      chaosItems.forEach((it, idx) => {
+        if (!it.stuck) {
+          it.x += it.vx + Math.sin(t * 0.003 + idx) * 0.8;
+          it.y += it.vy + Math.cos(t * 0.004 + idx) * 0.8;
+          it.rot += it.vr;
+          if (Math.random() < 0.01) { it.vx = (Math.random() * 8 - 4); it.vy = (Math.random() * 8 - 4); }
+          // bounce inside screen to keep visible/piling in area
+          if (it.x < -50) { it.x = -50; it.vx *= -0.8; }
+          if (it.x > vw - 20) { it.x = vw - 20; it.vx *= -0.8; }
+          if (it.y < -30) { it.y = -30; it.vy *= -0.8; }
+          if (it.y > vh - 20) { it.y = vh - 20; it.vy *= -0.8; }
+          // occasionally become stuck permanently
+          if (Math.random() < 0.0015) { it.stuck = true; it.vx = 0; it.vy = 0; it.el.classList.add('stuck'); }
+        } else {
+          it.rot += it.vr * 0.3;
+        }
+        const blink = (Math.sin(t * 0.02 + it.blinkPhase) > 0.15) ? 1 : 0.08;
+        const s = it.scale * (0.85 + 0.35 * Math.sin(t * 0.01 + it.blinkPhase));
+        it.el.style.opacity = blink;
+        it.el.style.transform = `translate(${it.x}px, ${it.y}px) rotate(${it.rot}deg) scale(${s})`;
+      });
+    }
+
+    function updateCrazyHands(t) {
+      if (!document.body.classList.contains('theme-hallucination')) return;
+      const sec = document.getElementById('second');
+      const min = document.getElementById('minute');
+      const hr = document.getElementById('hour');
+      const ts = t * 0.001;
+      const sDeg = ts * 720 + Math.sin(ts * 13) * 120;
+      const mDeg = ts * -480 + Math.cos(ts * 9) * 160;
+      const hDeg = ts * 360 + Math.sin(ts * 7) * 90;
+      const sS = 1 + Math.sin(ts * 11) * 0.9;
+      const mS = 1 + Math.cos(ts * 8) * 0.8;
+      const hS = 1 + Math.sin(ts * 6 + 1) * 0.7;
+      const sxS = 1 + Math.sin(ts * 15) * 0.6;
+      sec.style.transform = `translateX(-50%) rotate(${sDeg}deg) scale(${sS}, ${sxS})`;
+      min.style.transform = `translateX(-50%) rotate(${mDeg}deg) scale(${mS}, ${1 + Math.cos(ts*10)*0.5})`;
+      hr.style.transform = `translateX(-50%) rotate(${hDeg}deg) scale(${hS}, ${1 + Math.sin(ts*9)*0.5})`;
+    }
+
+    function applyTheme(index) {
+      themeIndex = index;
+      document.body.classList.remove('theme-glamour', 'theme-bikini', 'theme-hallucination');
+      document.body.classList.add(themes[index].key);
+      document.getElementById('title').textContent = themes[index].title;
+      document.getElementById('subtitle').textContent = themes[index].subtitle;
+      document.getElementById('hint').innerHTML = themes[index].hint;
+      clearChaos();
+      if (themes[index].key === 'theme-bikini') resetFlyers();
+      else if (themes[index].key === 'theme-hallucination') spawnChaos();
+      layout();
+    }
+    function toggleTheme() { applyTheme((themeIndex + 1) % themes.length); }
+    document.addEventListener('keydown', (e) => {
+      if (e.key && e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) toggleTheme();
+    });
+
+    // Drag & throw for bikini
+    flyers.forEach(f => {
+      let lastX = 0, lastY = 0, lastT = 0;
+      const onDown = (e) => {
+        if (!document.body.classList.contains('theme-bikini')) return;
+        f.dragging = true; f.el.setPointerCapture(e.pointerId);
+        const rect = f.el.getBoundingClientRect();
+        f.offsetX = e.clientX - rect.left; f.offsetY = e.clientY - rect.top;
+        lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
+        f.vx = 0; f.vy = 0;
+      };
+      const onMove = (e) => {
+        if (!f.dragging) return;
+        const now = performance.now(); const dt = Math.max(1, now - lastT);
+        f.x = e.clientX - f.offsetX; f.y = e.clientY - f.offsetY;
+        f.vx = (e.clientX - lastX) / dt * 16; f.vy = (e.clientY - lastY) / dt * 16;
+        lastX = e.clientX; lastY = e.clientY; lastT = now;
+      };
+      const onUp = (e) => {
+        if (!f.dragging) return;
+        f.dragging = false; try { f.el.releasePointerCapture(e.pointerId); } catch {}
+        f.vx *= 1.25; f.vy *= 1.25; f.va = (Math.random() * 0.6 - 0.3) + f.vx * 0.01;
+      };
+      f.el.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+
+    function animateFlyers() {
+      if (document.body.classList.contains('theme-bikini')) {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        flyers.forEach(f => {
+          const rect = f.el.getBoundingClientRect();
+          f.w = rect.width || f.w; f.h = rect.height || f.h;
+          if (!f.dragging) {
+            f.x += f.vx; f.y += f.vy; f.angle += f.va;
+            f.vx += (Math.random() - 0.5) * 0.15; f.vy += (Math.random() - 0.5) * 0.15;
+            const speed = Math.hypot(f.vx, f.vy);
+            const max = 28, min = 3;
+            if (speed > max) { f.vx = f.vx / speed * max; f.vy = f.vy / speed * max; }
+            if (speed < min && speed > 0.01) { f.vx = f.vx / speed * min; f.vy = f.vy / speed * min; }
+            if (f.x <= 0) { f.x = 0; f.vx = Math.abs(f.vx) * 1.05; }
+            if (f.x + f.w >= vw) { f.x = vw - f.w; f.vx = -Math.abs(f.vx) * 1.05; }
+            if (f.y <= 0) { f.y = 0; f.vy = Math.abs(f.vy) * 1.05; }
+            if (f.y + f.h >= vh) { f.y = vh - f.h; f.vy = -Math.abs(f.vy) * 1.05; }
+          } else {
+            f.x = Math.max(0, Math.min(vw - f.w, f.x));
+            f.y = Math.max(0, Math.min(vh - f.h, f.y));
+          }
+          const speed = Math.hypot(f.vx, f.vy);
+          if (speed > 2 || f.dragging) f.el.classList.add('blinking'); else f.el.classList.remove('blinking');
+          f.el.style.transform = `translate(${f.x}px, ${f.y}px) rotate(${f.angle}rad)`;
+        });
+      }
+      requestAnimationFrame(animateFlyers);
+    }
+
+    function animateChaos(t) {
+      updateChaos(t || performance.now());
+      updateCrazyHands(t || performance.now());
+      requestAnimationFrame(animateChaos);
+    }
+
+    applyTheme(0);
+    window.addEventListener('resize', () => { layout(); });
+    update();
+    setInterval(update, 1000);
+    requestAnimationFrame(animateFlyers);
+    requestAnimationFrame(animateChaos);
+  </script>
+</body>
+</html>
